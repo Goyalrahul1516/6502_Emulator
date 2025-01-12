@@ -1,4 +1,6 @@
+#if 0
 #include "main_6502.h"
+
 int main()
 {
     Memory mem;
@@ -15,3 +17,6 @@ int main()
     printf("Hello");
     return 0;
 }
+#endif
+
+
