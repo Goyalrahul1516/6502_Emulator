@@ -1,5 +1,4 @@
 #include "main_6502.h"
-
 int main()
 {
     Memory mem;
@@ -13,5 +12,6 @@ int main()
     mem[0x4343] = 0x84;
     // end - in-line program here
     cpu.Execute( 8, mem );
+    printf("Hello");
     return 0;
 }
