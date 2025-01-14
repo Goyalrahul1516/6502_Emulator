@@ -194,7 +194,113 @@ s32 CPU::Execute(u32 Cycles, Memory &memory)
             LDYSetStatus();
         }
         break;
-        
+
+        case INS_STA_ZP:
+        {
+            Byte ZeroPageAddress = FetchByte(Cycles, memory);
+            WriteByte(Cycles, ZeroPageAddress, A, memory);
+        }
+        break;
+
+        case INS_STA_ZPX:
+        {
+            Byte ZeroPageAddress = FetchByte(Cycles, memory);
+            X = FetchByte(Cycles, memory);
+            ZeroPageAddress = (Byte)((ZeroPageAddress + X) % 0xFF);
+            WriteByte(Cycles, ZeroPageAddress, A, memory);
+        }
+        break;
+
+        case INS_STA_ABS:
+        {
+            Word AbsoluteAddress = FetchWord(Cycles, memory);
+            WriteByte(Cycles, AbsoluteAddress, A, memory);
+        }
+        break;
+
+        case INS_STA_ABSX:
+        {
+            Word AbsoluteAddress = FetchWord(Cycles, memory);
+            X = FetchByte(Cycles, memory);
+            AbsoluteAddress += X;
+            WriteByte(Cycles, AbsoluteAddress, A, memory);
+        }
+        break;
+
+        case INS_STA_ABSY:
+        {
+            Word AbsoluteAddress = FetchWord(Cycles, memory);
+            Y = FetchByte(Cycles, memory);
+            AbsoluteAddress += Y;
+            WriteByte(Cycles, AbsoluteAddress, A, memory);
+        }
+        break;
+
+        case INS_STA_INDX:
+        {
+            Byte ZeroPageAddress = FetchByte(Cycles, memory);
+            X = FetchByte(Cycles, memory);
+            Word Address = (Word)((ZeroPageAddress + X) % 0xFF);
+            Word EffectiveAddress = ReadWord(Cycles, Address, memory);
+            WriteByte(Cycles, EffectiveAddress, A, memory);
+        }
+        break;
+
+        case INS_STA_INDY:
+        {
+            Byte ZeroPageAddress = FetchByte(Cycles, memory);
+            Y = FetchByte(Cycles, memory);
+            Word Address = ReadWord(Cycles, ZeroPageAddress, memory);
+            Word EffectiveAddress = Address + Y;
+            WriteByte(Cycles, EffectiveAddress, A, memory);
+        }
+        break;
+
+        case INS_STX_ZP:
+        {
+            Byte ZeroPageAddress = FetchByte(Cycles, memory);
+            WriteByte(Cycles, ZeroPageAddress, X, memory);
+        }
+        break;
+
+        case INS_STX_ZPY:
+        {
+            Byte ZeroPageAddress = FetchByte(Cycles, memory);
+            Y = FetchByte(Cycles, memory);
+            ZeroPageAddress = (Byte)((ZeroPageAddress + Y) % 0xFF);
+            WriteByte(Cycles, ZeroPageAddress, X, memory);
+        }
+        break;
+
+        case INS_STX_ABS:
+        {
+            Word AbsoluteAddress = FetchWord(Cycles, memory);
+            WriteByte(Cycles, AbsoluteAddress, X, memory);
+        }
+        break;
+
+        case INS_STY_ZP:
+        {
+            Byte ZeroPageAddress = FetchByte(Cycles, memory);
+            WriteByte(Cycles, ZeroPageAddress, Y, memory);
+        }
+        break;
+
+        case INS_STY_ZPX:
+        {
+            Byte ZeroPageAddress = FetchByte(Cycles, memory);
+            X = FetchByte(Cycles, memory);
+            ZeroPageAddress = (Byte)((ZeroPageAddress + X) % 0xFF);
+            WriteByte(Cycles, ZeroPageAddress, Y, memory);
+        }
+        break;
+
+        case INS_STY_ABS:
+        {
+            Word AbsoluteAddress = FetchWord(Cycles, memory);
+            WriteByte(Cycles, AbsoluteAddress, Y, memory);
+        }
+        break;
 
         // case INS_JSR:
         // {

@@ -370,6 +370,22 @@ struct CPU
         return Data;
     }
 
+    // Write byte to memory
+    void WriteByte(u32 &Cycles, Word Address, Byte Data, Memory &memory)
+    {
+        memory[Address] = Data;
+        Cycles--;
+    }
+
+    // Write word to memory
+    void WriteWord(u32 &Cycles, Word Address, Word Data, Memory &memory)
+    {
+        memory[Address] = Data & 0xFF;
+        Cycles--;
+        memory[Address + 1] = (Data >> 8);
+        Cycles --;
+    }
+
     void LDASetStatus()
     {
         Z = (A == 0);
