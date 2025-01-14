@@ -7,9 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set the source files
 set(SOURCE_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/main_6502.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/class_6502.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/execute_6502.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/m6502.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/testclass.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/execute.h
 )
 
 # Create the library

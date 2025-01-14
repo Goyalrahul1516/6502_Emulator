@@ -1,6 +1,6 @@
-#include "main_6502.h"
+#include "m6502.h"
 
-s32 CPU::Execute(u32 Cycles, Memory &memory)
+m6502::s32 m6502::CPU::Execute(u32 Cycles, Memory &memory)
 {
     const u32 Cyclesrequested = Cycles;
     while (Cycles > 0)
