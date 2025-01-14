@@ -1,27 +1,54 @@
 #include <gtest/gtest.h>
-#include "main_6502.h"
-#include "class_6502.h"
-#include "execute_6502.h"
+#include "m6502.h"
+#include "testclass.h"
+#include "execute.h"
+
+static void VerifyUnmodifiedFlagsFromLD(const m6502::CPU& cpu, const m6502::CPU& cpucopy)
+{
+    EXPECT_EQ( cpu.C, cpucopy.C );
+    EXPECT_EQ( cpu.I, cpucopy.I );
+    EXPECT_EQ( cpu.D, cpucopy.D );
+    EXPECT_EQ( cpu.B, cpucopy.B );
+    EXPECT_EQ( cpu.V, cpucopy.V );
+}
+
+static void VerifyUnmodifiedFlagsFromST(const m6502::CPU& cpu, const m6502::CPU& cpucopy)
+{
+    EXPECT_EQ( cpu.C, cpucopy.C );
+    EXPECT_EQ( cpu.Z, cpucopy.Z );
+    EXPECT_EQ( cpu.I, cpucopy.I );
+    EXPECT_EQ( cpu.D, cpucopy.D );
+    EXPECT_EQ( cpu.B, cpucopy.B );
+    EXPECT_EQ( cpu.V, cpucopy.V );
+    EXPECT_EQ( cpu.N, cpucopy.N );
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// LDA TESTS
-TEST_F( Testsuite6502, INS_LDA_IM)
+// LD load TESTS
+
+void Testsuite6502::TEST_INS_LD_IM(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
 {
-    mem[0xFFF0] = CPU::INS_LDA_IM;
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
     mem[0xFFF1] = 0x85;
     auto address = (Word)(0xFFF1);
     CPU cpucopy = cpu;
 
     s32 Cyclesused = cpu.Execute( 2, mem );
 
-    EXPECT_EQ( cpu.A, mem[address] );
+    EXPECT_EQ( cpu.*Register, mem[address] );
     VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
     EXPECT_EQ( Cyclesused, 2 );
 }
 
-TEST_F( Testsuite6502, INS_LDA_ZP)
+void Testsuite6502::TEST_INS_LD_ZP(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
 {
-    mem[0xFFF0] = CPU::INS_LDA_ZP;
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
     mem[0xFFF1] = 0x85;
     mem[0x0085] = 0x42;
     auto address = (Word)(0x0085);
@@ -29,14 +56,17 @@ TEST_F( Testsuite6502, INS_LDA_ZP)
 
     s32 Cyclesused = cpu.Execute( 3, mem );  
 
-    EXPECT_EQ( cpu.A, mem[address] );
+    EXPECT_EQ( cpu.*Register, mem[address] );
     VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
     EXPECT_EQ( Cyclesused, 3 );
 }
 
-TEST_F( Testsuite6502, INS_LDA_ZPX)
+void Testsuite6502::TEST_INS_LD_ZPX(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
 {
-    mem[0xFFF0] = CPU::INS_LDA_ZPX;
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
     mem[0xFFF1] = 0x85;
     mem[0xFFF2] = 0x86;
     auto address = (Byte)((mem[0xFFF1] + mem[0xFFF2]) % 0xFF);
@@ -45,15 +75,18 @@ TEST_F( Testsuite6502, INS_LDA_ZPX)
 
     s32 Cyclesused = cpu.Execute( 4, mem );  
 
-    EXPECT_EQ( cpu.A, mem[address] );
+    EXPECT_EQ( cpu.*Register, mem[address] );
     VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
     EXPECT_EQ( cpu.X, mem[0xFFF2] );
     EXPECT_EQ( Cyclesused, 4 );
 }
 
-TEST_F( Testsuite6502, INS_LDA_ABS)
+void Testsuite6502::TEST_INS_LD_ABS(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
 {
-    mem[0xFFF0] = CPU::INS_LDA_ABS;
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
     mem[0xFFF1] = 0x43;
     mem[0xFFF2] = 0x42;
     auto address = (Word)(mem[0xFFF1] | (mem[0xFFF2] << 8));
@@ -62,86 +95,230 @@ TEST_F( Testsuite6502, INS_LDA_ABS)
 
     s32 Cyclesused = cpu.Execute( 4, mem );  
 
-    EXPECT_EQ( cpu.A, mem[address] );
+    EXPECT_EQ( cpu.*Register, mem[address] );
     EXPECT_EQ( Cyclesused, 4 );
     VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
+}
+
+void Testsuite6502::TEST_INS_LD_ABSX(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
+{
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
+    mem[0xFFF1] = 0x43;
+    mem[0xFFF2] = 0x42;
+    mem[0xFFF3] = 0x01;
+    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
+    mem[address] = 0x42;
+    CPU cpucopy = cpu;
+
+    s32 Cyclesused = cpu.Execute( 4, mem );  
+
+    EXPECT_EQ( cpu.*Register, mem[address] );
+    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
+    EXPECT_EQ( cpu.X, mem[0xFFF3] );
+    EXPECT_EQ( Cyclesused, 4 );
+}
+
+void Testsuite6502::TEST_INS_LD_ABSX_PAGE_CROSS(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
+{
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
+    mem[0xFFF1] = 0xFF;
+    mem[0xFFF2] = 0x01;
+    mem[0xFFF3] = 0x01;
+    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
+    mem[address] = 0x42;
+    CPU cpucopy = cpu;
+
+    s32 Cyclesused = cpu.Execute( 5, mem );  
+
+    EXPECT_EQ( cpu.*Register, mem[address] );
+    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
+    EXPECT_EQ( cpu.X, mem[0xFFF3] );
+    EXPECT_EQ( Cyclesused, 5 );
+}
+
+void Testsuite6502::TEST_INS_LD_ABSY(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
+{
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
+    mem[0xFFF1] = 0x43;
+    mem[0xFFF2] = 0x42;
+    mem[0xFFF3] = 0x01;
+    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
+    mem[address] = 0x42;
+    CPU cpucopy = cpu;
+
+    s32 Cyclesused = cpu.Execute( 4, mem );  
+
+    EXPECT_EQ( cpu.*Register, mem[address] );
+    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
+    EXPECT_EQ( cpu.Y, mem[0xFFF3] );
+    EXPECT_EQ( Cyclesused, 4 );
+}
+
+void Testsuite6502::TEST_INS_LD_ABSY_PAGE_CROSS(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
+{
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
+    mem[0xFFF1] = 0x43;
+    mem[0xFFF2] = 0x42;
+    mem[0xFFF3] = 0xBE;
+    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
+    mem[address] = 0x42;
+    CPU cpucopy = cpu;
+
+    s32 Cyclesused = cpu.Execute( 5, mem );  
+
+    EXPECT_EQ( cpu.*Register, mem[address] );
+    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
+    EXPECT_EQ( cpu.Y, mem[0xFFF3] );
+    EXPECT_EQ( Cyclesused, 5 );
+}
+
+TEST_F( Testsuite6502, INS_LDA_IM)
+{
+    using namespace m6502;
+    TEST_INS_LD_IM( CPU::INS_LDA_IM, &CPU::A );
+}
+
+TEST_F( Testsuite6502, INS_LDX_IM)
+{
+    using namespace m6502;
+    TEST_INS_LD_IM( CPU::INS_LDX_IM, &CPU::X );
+}
+
+TEST_F( Testsuite6502, INS_LDY_IM)
+{
+    using namespace m6502;
+    TEST_INS_LD_IM( CPU::INS_LDY_IM, &CPU::Y );
+}
+
+TEST_F( Testsuite6502, INS_LDA_ZP)
+{
+    using namespace m6502;
+    TEST_INS_LD_ZP( CPU::INS_LDA_ZP, &CPU::A );
+}
+
+TEST_F( Testsuite6502, INS_LDX_ZP)
+{
+    using namespace m6502;
+    TEST_INS_LD_ZP( CPU::INS_LDX_ZP, &CPU::X );
+}
+
+TEST_F( Testsuite6502, INS_LDY_ZP)
+{
+    using namespace m6502;
+    TEST_INS_LD_ZP( CPU::INS_LDY_ZP, &CPU::Y );
+}
+
+TEST_F( Testsuite6502, INS_LDA_ZPX)
+{
+    using namespace m6502;
+    TEST_INS_LD_ZPX( CPU::INS_LDA_ZPX, &CPU::A );
+}
+
+TEST_F( Testsuite6502, INS_LDY_ZPX)
+{
+    using namespace m6502;
+    TEST_INS_LD_ZPX( CPU::INS_LDY_ZPX, &CPU::Y );
+}
+
+TEST_F( Testsuite6502, INS_LDX_ZPY)
+{
+    using namespace m6502;
+    mem[0xFFF0] = CPU::INS_LDX_ZPY;
+    mem[0xFFF1] = 0x85;
+    mem[0xFFF2] = 0x86;
+    auto address = (Byte)((mem[0xFFF1] + mem[0xFFF2]) % 0xFF);
+    mem[address] = 0x42;
+    CPU cpucopy = cpu;
+
+    s32 Cyclesused = cpu.Execute( 4, mem );  
+
+    EXPECT_EQ( cpu.X, mem[address] );
+    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
+    EXPECT_EQ( cpu.Y, mem[0xFFF2] );
+    EXPECT_EQ( Cyclesused, 4 );
+}
+
+TEST_F( Testsuite6502, INS_LDA_ABS)
+{
+    using namespace m6502;
+    TEST_INS_LD_ABS( CPU::INS_LDA_ABS, &CPU::A );
+}
+
+TEST_F( Testsuite6502, INS_LDX_ABS)
+{
+    using namespace m6502;
+    TEST_INS_LD_ABS( CPU::INS_LDX_ABS, &CPU::X );
+}
+
+TEST_F( Testsuite6502, INS_LDY_ABS)
+{
+    using namespace m6502;
+    TEST_INS_LD_ABS( CPU::INS_LDY_ABS, &CPU::Y );
 }
 
 TEST_F( Testsuite6502, INS_LDA_ABSX)
 {
-    mem[0xFFF0] = CPU::INS_LDA_ABSX;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    mem[0xFFF3] = 0x01;
-    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( cpu.A, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( cpu.X, mem[0xFFF3] );
-    EXPECT_EQ( Cyclesused, 4 );
-    
+    using namespace m6502;
+    TEST_INS_LD_ABSX( CPU::INS_LDA_ABSX, &CPU::A );
 }
 
-TEST_F( Testsuite6502, INS_LDA_ABSX1)
+TEST_F( Testsuite6502, INS_LDY_ABSX)
 {
-    mem[0xFFF0] = CPU::INS_LDA_ABSX;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    mem[0xFFF3] = 0xBE;
-    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
+    using namespace m6502;
+    TEST_INS_LD_ABSX( CPU::INS_LDY_ABSX, &CPU::Y );
+}
 
-    s32 Cyclesused = cpu.Execute( 5, mem );  
+TEST_F( Testsuite6502, INS_LDA_ABSX_PAGE_CROSS)
+{
+    using namespace m6502;
+    TEST_INS_LD_ABSX_PAGE_CROSS( CPU::INS_LDA_ABSX, &CPU::A );
+}
 
-    EXPECT_EQ( cpu.A, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( cpu.X, mem[0xFFF3] );
-    EXPECT_EQ( Cyclesused, 5 );
+TEST_F(  Testsuite6502, INS_LDY_ABSX_PAGE_CROSS)
+{
+    using namespace m6502;
+    TEST_INS_LD_ABSX_PAGE_CROSS( CPU::INS_LDY_ABSX, &CPU::Y );
 }
 
 TEST_F( Testsuite6502, INS_LDA_ABSY)
 {
-    mem[0xFFF0] = CPU::INS_LDA_ABSY;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    mem[0xFFF3] = 0x01;
-    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( cpu.A, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( cpu.Y, mem[0xFFF3] );
-    EXPECT_EQ( Cyclesused, 4 );
+    using namespace m6502;
+    TEST_INS_LD_ABSY( CPU::INS_LDA_ABSY, &CPU::A );
 }
 
-TEST_F( Testsuite6502, INS_LDA_ABSY1)
+TEST_F( Testsuite6502, INS_LDX_ABSY)
 {
-    mem[0xFFF0] = CPU::INS_LDA_ABSY;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    mem[0xFFF3] = 0xBE;
-    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
+    using namespace m6502;
+    TEST_INS_LD_ABSY( CPU::INS_LDX_ABSY, &CPU::X );
+}
 
-    s32 Cyclesused = cpu.Execute( 5, mem );  
+TEST_F( Testsuite6502, INS_LDA_ABSY_PAGE_CROSS)
+{
+    using namespace m6502;
+    TEST_INS_LD_ABSY_PAGE_CROSS( CPU::INS_LDA_ABSY, &CPU::A );
+}
 
-    EXPECT_EQ( cpu.A, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( cpu.Y, mem[0xFFF3] );
-    EXPECT_EQ( Cyclesused, 5 );
+TEST_F( Testsuite6502, INS_LDX_ABSY_PAGE_CROSS)
+{
+    using namespace m6502;
+    TEST_INS_LD_ABSY_PAGE_CROSS( CPU::INS_LDX_ABSY, &CPU::X );
 }
 
 TEST_F( Testsuite6502, INS_LDA_INDX)
 {
+    using namespace m6502;
     mem[0xFFF0] = CPU::INS_LDA_INDX;
     mem[0xFFF1] = 0x85;
     mem[0xFFF2] = 0x86;
@@ -160,6 +337,7 @@ TEST_F( Testsuite6502, INS_LDA_INDX)
 
 TEST_F( Testsuite6502, INS_LDA_INDY)
 {
+    using namespace m6502;
     mem[0xFFF0] = CPU::INS_LDA_INDY;
     mem[0xFFF1] = 0x85;
     mem[0xFFF2] = 0x42;
@@ -180,6 +358,7 @@ TEST_F( Testsuite6502, INS_LDA_INDY)
 
 TEST_F(  Testsuite6502, INS_LDA_INDY1)
 {
+    using namespace m6502;
     mem[0xFFF0] = CPU::INS_LDA_INDY;
     mem[0xFFF1] = 0x85;
     mem[0xFFF2] = 0xE1;
@@ -198,261 +377,135 @@ TEST_F(  Testsuite6502, INS_LDA_INDY1)
     EXPECT_EQ( Cyclesused, 6 );
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// LDX TESTS
+//////////////////////////////////////////////////////////////////////////////
+// STA TESTS
 
-TEST_F( Testsuite6502, INS_LDX_IM)
+void Testsuite6502::TEST_INS_ST_ZP(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
 {
-    mem[0xFFF0] = CPU::INS_LDX_IM;
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
     mem[0xFFF1] = 0x85;
-    auto address = (Word)(0xFFF1);
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 2, mem );
-
-    EXPECT_EQ( cpu.X, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( Cyclesused, 2 );
-}
-
-TEST_F( Testsuite6502, INS_LDX_ZP)
-{
-    mem[0xFFF0] = CPU::INS_LDX_ZP;
-    mem[0xFFF1] = 0x85;
-    mem[0x0085] = 0x42;
+    cpu.*Register = 0x42;
     auto address = (Word)(0x0085);
     CPU cpucopy = cpu;
 
     s32 Cyclesused = cpu.Execute( 3, mem );  
 
-    EXPECT_EQ( cpu.X, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
+    EXPECT_EQ( mem[address], cpu.*Register );
+    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
     EXPECT_EQ( Cyclesused, 3 );
 }
 
-TEST_F( Testsuite6502, INS_LDX_ZPY)
+void Testsuite6502::TEST_INS_ST_ZPX(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
 {
-    mem[0xFFF0] = CPU::INS_LDX_ZPY;
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
     mem[0xFFF1] = 0x85;
     mem[0xFFF2] = 0x86;
+    cpu.*Register = 0x42;
     auto address = (Byte)((mem[0xFFF1] + mem[0xFFF2]) % 0xFF);
-    mem[address] = 0x42;
     CPU cpucopy = cpu;
 
     s32 Cyclesused = cpu.Execute( 4, mem );  
 
-    EXPECT_EQ( cpu.X, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( cpu.Y, mem[0xFFF2] );
-    EXPECT_EQ( Cyclesused, 4 );
-}
-
-TEST_F( Testsuite6502, INS_LDX_ABS)
-{
-    mem[0xFFF0] = CPU::INS_LDX_ABS;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    auto address = (Word)(mem[0xFFF1] | (mem[0xFFF2] << 8));
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( cpu.X, mem[address] );
-    EXPECT_EQ( Cyclesused, 4 );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-}
-
-TEST_F(  Testsuite6502, INS_LDX_ABSY)
-{
-    mem[0xFFF0] = CPU::INS_LDX_ABSY;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    mem[0xFFF3] = 0x01;
-    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( cpu.X, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( cpu.Y, mem[0xFFF3] );
-    EXPECT_EQ( Cyclesused, 4 );
-}
-
-TEST_F(  Testsuite6502, INS_LDX_ABSY1)
-{
-    mem[0xFFF0] = CPU::INS_LDX_ABSY;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    mem[0xFFF3] = 0xBE;
-    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 5, mem );  
-
-    EXPECT_EQ( cpu.X, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( cpu.Y, mem[0xFFF3] );
-    EXPECT_EQ( Cyclesused, 5 );
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-// LDY TESTS
-
-TEST_F( Testsuite6502, INS_LDY_IM)
-{
-    mem[0xFFF0] = CPU::INS_LDY_IM;
-    mem[0xFFF1] = 0x85;
-    auto address = (Word)(0xFFF1);
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 2, mem );
-
-    EXPECT_EQ( cpu.Y, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( Cyclesused, 2 );
-}
-
-TEST_F( Testsuite6502, INS_LDY_ZP)
-{
-    mem[0xFFF0] = CPU::INS_LDY_ZP;
-    mem[0xFFF1] = 0x85;
-    mem[0x0085] = 0x42;
-    auto address = (Word)(0x0085);
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 3, mem );  
-
-    EXPECT_EQ( cpu.Y, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( Cyclesused, 3 );
-}
-
-TEST_F( Testsuite6502, INS_LDY_ZPX)
-{
-    mem[0xFFF0] = CPU::INS_LDY_ZPX;
-    mem[0xFFF1] = 0x85;
-    mem[0xFFF2] = 0x86;
-    auto address = (Byte)((mem[0xFFF1] + mem[0xFFF2]) % 0xFF);
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( cpu.Y, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
+    EXPECT_EQ( mem[address], cpu.*Register );
+    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
     EXPECT_EQ( cpu.X, mem[0xFFF2] );
     EXPECT_EQ( Cyclesused, 4 );
 }
 
-TEST_F( Testsuite6502, INS_LDY_ABS)
+void Testsuite6502::TEST_INS_ST_ABS(
+    m6502::Byte opcode, 
+    m6502::Byte m6502::CPU::*Register )
 {
-    mem[0xFFF0] = CPU::INS_LDY_ABS;
+    using namespace m6502;
+    mem[0xFFF0] = opcode;
     mem[0xFFF1] = 0x43;
     mem[0xFFF2] = 0x42;
+    cpu.*Register = 0x42;
     auto address = (Word)(mem[0xFFF1] | (mem[0xFFF2] << 8));
-    mem[address] = 0x42;
     CPU cpucopy = cpu;
 
     s32 Cyclesused = cpu.Execute( 4, mem );  
 
-    EXPECT_EQ( cpu.Y, mem[address] );
-    EXPECT_EQ( Cyclesused, 4 );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-}
-
-TEST_F(  Testsuite6502, INS_LDY_ABSX)
-{
-    mem[0xFFF0] = CPU::INS_LDY_ABSX;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    mem[0xFFF3] = 0x01;
-    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( cpu.Y, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( cpu.X, mem[0xFFF3] );
+    EXPECT_EQ( mem[address], cpu.*Register );
+    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
     EXPECT_EQ( Cyclesused, 4 );
 }
-
-TEST_F(  Testsuite6502, INS_LDY_ABSX1)
-{
-    mem[0xFFF0] = CPU::INS_LDY_ABSX;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    mem[0xFFF3] = 0xBE;
-    auto address = (Word)((mem[0xFFF1] | (mem[0xFFF2] << 8)) + mem[0xFFF3]);
-    mem[address] = 0x42;
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 5, mem );  
-
-    EXPECT_EQ( cpu.Y, mem[address] );
-    VerifyUnmodifiedFlagsFromLD(cpu, cpucopy);
-    EXPECT_EQ( cpu.X, mem[0xFFF3] );
-    EXPECT_EQ( Cyclesused, 5 );
-}
-
-//////////////////////////////////////////////////////////////////////////////
-// STA TESTS
 
 TEST_F( Testsuite6502, INS_STA_ZP)
 {
+    using namespace m6502;
     mem[0xFFF0] = CPU::INS_STA_ZP;
-    mem[0xFFF1] = 0x85;
-    cpu.A = 0x42;
-    auto address = (Word)(0x0085);
-    CPU cpucopy = cpu;
+}
 
-    s32 Cyclesused = cpu.Execute( 3, mem );  
+TEST_F( Testsuite6502, INS_STX_ZP)
+{
+    using namespace m6502;
+    mem[0xFFF0] = CPU::INS_STX_ZP;
+}
 
-    EXPECT_EQ( mem[address], cpu.A );
-    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
-    EXPECT_EQ( Cyclesused, 3 );
+TEST_F( Testsuite6502, INS_STY_ZP)
+{
+    using namespace m6502;
+    mem[0xFFF0] = CPU::INS_STY_ZP;
 }
 
 TEST_F(Testsuite6502, INS_STA_ZPX)
 {
-    mem[0xFFF0] = CPU::INS_STA_ZPX;
+    using namespace m6502;
+    TEST_INS_ST_ZPX( CPU::INS_STA_ZPX, &CPU::A );
+}
+
+TEST_F( Testsuite6502, INS_STY_ZPX)
+{
+    using namespace m6502;
+    TEST_INS_ST_ZPX( CPU::INS_STY_ZPX, &CPU::Y );
+}
+
+TEST_F( Testsuite6502, INS_STX_ZPY)
+{
+    using namespace m6502;
+    mem[0xFFF0] = CPU::INS_STX_ZPY;
     mem[0xFFF1] = 0x85;
     mem[0xFFF2] = 0x86;
-    cpu.A = 0x42;
+    cpu.X = 0x42;
     auto address = (Byte)((mem[0xFFF1] + mem[0xFFF2]) % 0xFF);
     CPU cpucopy = cpu;
 
     s32 Cyclesused = cpu.Execute( 4, mem );  
 
-    EXPECT_EQ( mem[address], cpu.A );
+    EXPECT_EQ( mem[address], cpu.X );
     VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
-    EXPECT_EQ( cpu.X, mem[0xFFF2] );
+    EXPECT_EQ( cpu.Y, mem[0xFFF2] );
     EXPECT_EQ( Cyclesused, 4 );
 }
 
 TEST_F( Testsuite6502, INS_STA_ABS)
 {
-    mem[0xFFF0] = CPU::INS_STA_ABS;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    cpu.A = 0x42;
-    auto address = (Word)(mem[0xFFF1] | (mem[0xFFF2] << 8));
-    CPU cpucopy = cpu;
+    using namespace m6502;
+    TEST_INS_ST_ABS( CPU::INS_STA_ABS, &CPU::A );
+}
 
-    s32 Cyclesused = cpu.Execute( 4, mem );  
+TEST_F( Testsuite6502, INS_STX_ABS)
+{
+    using namespace m6502;
+    TEST_INS_ST_ABS( CPU::INS_STX_ABS, &CPU::X );
+}
 
-    EXPECT_EQ( mem[address], cpu.A );
-    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
-    EXPECT_EQ( Cyclesused, 4 );
+TEST_F( Testsuite6502, INS_STY_ABS)
+{
+    using namespace m6502;
+    TEST_INS_ST_ABS( CPU::INS_STY_ABS, &CPU::Y );
 }
 
 TEST_F( Testsuite6502, INS_STA_ABSX)
 {
+    using namespace m6502;
     mem[0xFFF0] = CPU::INS_STA_ABSX;
     mem[0xFFF1] = 0x43;
     mem[0xFFF2] = 0x42;
@@ -471,6 +524,7 @@ TEST_F( Testsuite6502, INS_STA_ABSX)
 
 TEST_F( Testsuite6502, INS_STA_ABSY)
 {
+    using namespace m6502;
     mem[0xFFF0] = CPU::INS_STA_ABSY;
     mem[0xFFF1] = 0x43;
     mem[0xFFF2] = 0x42;
@@ -489,6 +543,7 @@ TEST_F( Testsuite6502, INS_STA_ABSY)
 
 TEST_F( Testsuite6502, INS_STA_INDX)
 {
+    using namespace m6502;
     mem[0xFFF0] = CPU::INS_STA_INDX;
     mem[0xFFF1] = 0x85;
     mem[0xFFF2] = 0x86;
@@ -507,6 +562,7 @@ TEST_F( Testsuite6502, INS_STA_INDX)
 
 TEST_F( Testsuite6502, INS_STA_INDY)
 {
+    using namespace m6502;
     mem[0xFFF0] = CPU::INS_STA_INDY;
     mem[0xFFF1] = 0x85;
     mem[0xFFF2] = 0x42;
@@ -523,106 +579,4 @@ TEST_F( Testsuite6502, INS_STA_INDY)
     VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
     EXPECT_EQ( cpu.Y, mem[0xFFF2] );
     EXPECT_EQ( Cyclesused, 6 );
-}
-
-///////////////////////////////////////////////////////////////
-// STX TESTS
-
-TEST_F( Testsuite6502, INS_STX_ZP)
-{
-    mem[0xFFF0] = CPU::INS_STX_ZP;
-    mem[0xFFF1] = 0x85;
-    cpu.X = 0x42;
-    auto address = (Word)(0x0085);
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 3, mem );  
-
-    EXPECT_EQ( mem[address], cpu.X );
-    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
-    EXPECT_EQ( Cyclesused, 3 );
-}
-
-TEST_F( Testsuite6502, INS_STX_ZPY)
-{
-    mem[0xFFF0] = CPU::INS_STX_ZPY;
-    mem[0xFFF1] = 0x85;
-    mem[0xFFF2] = 0x86;
-    cpu.X = 0x42;
-    auto address = (Byte)((mem[0xFFF1] + mem[0xFFF2]) % 0xFF);
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( mem[address], cpu.X );
-    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
-    EXPECT_EQ( cpu.Y, mem[0xFFF2] );
-    EXPECT_EQ( Cyclesused, 4 );
-}
-
-TEST_F( Testsuite6502, INS_STX_ABS)
-{
-    mem[0xFFF0] = CPU::INS_STX_ABS;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    cpu.X = 0x42;
-    auto address = (Word)(mem[0xFFF1] | (mem[0xFFF2] << 8));
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( mem[address], cpu.X );
-    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
-    EXPECT_EQ( Cyclesused, 4 );
-}
-
-///////////////////////////////////////////////////////////////////
-// STY TESTS
-
-TEST_F( Testsuite6502, INS_STY_ZP)
-{
-    mem[0xFFF0] = CPU::INS_STY_ZP;
-    mem[0xFFF1] = 0x85;
-    cpu.Y = 0x42;
-    auto address = (Word)(0x0085);
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 3, mem );  
-
-    EXPECT_EQ( mem[address], cpu.Y );
-    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
-    EXPECT_EQ( Cyclesused, 3 );
-}
-
-TEST_F( Testsuite6502, INS_STY_ZPX)
-{
-    mem[0xFFF0] = CPU::INS_STY_ZPX;
-    mem[0xFFF1] = 0x85;
-    mem[0xFFF2] = 0x86;
-    cpu.Y = 0x42;
-    auto address = (Byte)((mem[0xFFF1] + mem[0xFFF2]) % 0xFF);
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( mem[address], cpu.Y );
-    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
-    EXPECT_EQ( cpu.X, mem[0xFFF2] );
-    EXPECT_EQ( Cyclesused, 4 );
-}
-
-TEST_F( Testsuite6502, INS_STY_ABS)
-{
-    mem[0xFFF0] = CPU::INS_STY_ABS;
-    mem[0xFFF1] = 0x43;
-    mem[0xFFF2] = 0x42;
-    cpu.Y = 0x42;
-    auto address = (Word)(mem[0xFFF1] | (mem[0xFFF2] << 8));
-    CPU cpucopy = cpu;
-
-    s32 Cyclesused = cpu.Execute( 4, mem );  
-
-    EXPECT_EQ( mem[address], cpu.Y );
-    VerifyUnmodifiedFlagsFromST(cpu, cpucopy);
-    EXPECT_EQ( Cyclesused, 4 );
 }

@@ -2,13 +2,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-using Byte = unsigned char;  // 8-bit unsigned register
-using Word = unsigned short; // 16-bit unsigned register
-using u32 = unsigned int;    // 32-bit unsigned register
-using s32 = signed int;      // 32-bit signed register
+namespace m6502 {
+    using Byte = unsigned char;  // 8-bit unsigned register
+    using Word = unsigned short; // 16-bit unsigned register
+    using u32 = unsigned int;    // 32-bit unsigned register
+    using s32 = signed int;      // 32-bit signed register
+
+    struct Memory;
+    struct CPU;
+}
 
 // Memory struct
-struct Memory
+struct m6502::Memory
 {
     static constexpr u32 MAX_MEM = 1024 * 64; // variable size 1024*64
     Byte Data[MAX_MEM];                       // Data array 1024*64 cells each 8-bit size
@@ -45,7 +50,7 @@ struct Memory
 };
 
 // CPU struct
-struct CPU
+struct m6502::CPU
 {
     Word PC;          // Program counter
     Byte SP, A, X, Y; // Stack pointer SP and registers A, X, Y
@@ -58,48 +63,26 @@ struct CPU
     Byte N : 1;       // Negative flag
 
     static constexpr Byte
-        // LDA - Load Accumulator
-        INS_LDA_IM = 0xA9,
-        INS_LDA_ZP = 0xA5,
-        INS_LDA_ZPX = 0xB5,
-        INS_LDA_ABS = 0xAD,
-        INS_LDA_ABSX = 0xBD,
-        INS_LDA_ABSY = 0xB9,
-        INS_LDA_INDX = 0xA1,
-        INS_LDA_INDY = 0xB1,
-
-        // LDX - Load X Register
-        INS_LDX_IM = 0xA2,
-        INS_LDX_ZP = 0xA6,
-        INS_LDX_ZPY = 0xB6,
-        INS_LDX_ABS = 0xAE,
-        INS_LDX_ABSY = 0xBE,
-
-        // LDY - Load Y Register
-        INS_LDY_IM = 0xA0,
-        INS_LDY_ZP = 0xA4,
-        INS_LDY_ZPX = 0xB4,
-        INS_LDY_ABS = 0xAC,
-        INS_LDY_ABSX = 0xBC,
+        // LD - Load 
+        INS_LDA_IM = 0xA9, INS_LDX_IM = 0xA2, INS_LDY_IM = 0xA0, // Load Immediate
+        INS_LDA_ZP = 0xA5, INS_LDX_ZP = 0xA6, INS_LDY_ZP = 0xA4, // Load Zero Page
+        INS_LDA_ZPX = 0xB5,INS_LDY_ZPX = 0xB4,                   // Load Zero Page X
+        INS_LDX_ZPY = 0xB6,                                     // Load Zero Page Y
+        INS_LDA_ABS = 0xAD, INS_LDX_ABS = 0xAE, INS_LDY_ABS = 0xAC, // Load Absolute
+        INS_LDA_ABSX = 0xBD,INS_LDY_ABSX = 0xBC,                  // Load Absolute X
+        INS_LDA_ABSY = 0xB9, INS_LDX_ABSY = 0xBE,                    // Load Absolute Y
+        INS_LDA_INDX = 0xA1,                                        // Load Indirect X
+        INS_LDA_INDY = 0xB1,                                        // Load Indirect Y
 
         // STA - Store Accumulator
-        INS_STA_ZP = 0x85,
-        INS_STA_ZPX = 0x95,
-        INS_STA_ABS = 0x8D,
-        INS_STA_ABSX = 0x9D,
-        INS_STA_ABSY = 0x99,
-        INS_STA_INDX = 0x81,
-        INS_STA_INDY = 0x91,
-
-        // STX - Store X Register
-        INS_STX_ZP = 0x86,
-        INS_STX_ZPY = 0x96,
-        INS_STX_ABS = 0x8E,
-
-        // STY - Store Y Register
-        INS_STY_ZP = 0x84,
-        INS_STY_ZPX = 0x94,
-        INS_STY_ABS = 0x8C,
+        INS_STA_ZP = 0x85, INS_STX_ZP = 0x86, INS_STY_ZP = 0x84, // Store Zero Page
+        INS_STA_ZPX = 0x95, INS_STY_ZPX = 0x94,                 // Store Zero Page X
+        INS_STX_ZPY = 0x96,                                     // Store Zero Page Y
+        INS_STA_ABS = 0x8D, INS_STX_ABS = 0x8E, INS_STY_ABS = 0x8C,     // Store Absolute
+        INS_STA_ABSX = 0x9D,                                        // Store Absolute X
+        INS_STA_ABSY = 0x99,                                        // Store Absolute Y
+        INS_STA_INDX = 0x81,                                        // Store Indirect X
+        INS_STA_INDY = 0x91,                                            // Store Indirect Y
 
         // AND - Logical AND
         INS_AND_IM = 0x29,
